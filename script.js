@@ -468,6 +468,38 @@ document.getElementById('phanicblog').addEventListener('click', (e) => {
     openModal('blogModal');
 });
 
+// Google Maps Modal
+document.getElementById('googleMapsLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    openModal('googleMapsModal');
+});
+
+// Get Directions - uses navigator.geolocation to get user location
+document.getElementById('getDirectionsBtn').addEventListener('click', () => {
+    const destination = 'Phanic+Computer+Hub+(Epiphanian),65+Venn+Road+South+Odoakpu+Onitsha+Anambra+State';
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destination}&travelmode=driving`;
+                window.open(directionsUrl, '_blank');
+            },
+            (error) => {
+                // If geolocation fails or is denied, open directions without origin
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+                window.open(directionsUrl, '_blank');
+            },
+            { timeout: 8000, enableHighAccuracy: true }
+        );
+    } else {
+        // Geolocation not supported
+        const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+        window.open(directionsUrl, '_blank');
+    }
+});
+
 // Close modal handlers
 document.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -608,4 +640,121 @@ console.log('%cEmpowering through digital education', 'font-size: 14px; color: #
                 : 'Read more <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
         });
     });
+})();
+
+// ============================================
+// LOCALSTORAGE — Render Dynamic Courses & Reviews
+// ============================================
+
+(function () {
+    // --- Render custom courses from localStorage ---
+    const customCourses = JSON.parse(localStorage.getItem('phanic_custom_courses') || '[]');
+    const coursesGrid = document.querySelector('.courses-grid');
+
+    if (customCourses.length && coursesGrid) {
+        customCourses.forEach(course => {
+            const card = document.createElement('div');
+            card.className = 'course-card';
+            card.setAttribute('data-aos', 'fade-up');
+            card.innerHTML = `
+                <div class="course-image">
+                    <img src="${course.image || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400'}" alt="${course.title}" loading="lazy" />
+                    <div class="course-overlay"></div>
+                    <span class="course-badge">${course.badge || 'New'}</span>
+                    <button class="course-play-btn" aria-label="View course details">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div class="course-content">
+                    <h4>${course.title}</h4>
+                    <p>${course.description}</p>
+                    <div class="course-price">
+                        <span class="price-physical">${course.pricePhysical || ''}</span>
+                        <span class="price-online">${course.priceOnline || ''}</span>
+                    </div>
+                    ${course.duration ? `<span class="course-duration">${course.duration}</span>` : ''}
+                    ${course.link ? `<a href="${course.link}" target="_blank" class="course-link">Learn more →</a>` : '<span class="course-link">Click for details →</span>'}
+                </div>
+            `;
+            // If link is external, open in new tab; otherwise behave like other course cards
+            if (course.link) {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('a')) {
+                        window.open(course.link, '_blank');
+                    }
+                });
+            }
+            coursesGrid.appendChild(card);
+        });
+    }
+
+    // --- Render custom reviews from localStorage ---
+    const customReviews = JSON.parse(localStorage.getItem('phanic_custom_reviews') || '[]');
+    const reviewTrack = document.getElementById('reviewCarouselTrack');
+
+    if (customReviews.length && reviewTrack) {
+        customReviews.forEach(review => {
+            const slide = document.createElement('div');
+            slide.className = 'review-carousel-slide';
+            slide.innerHTML = `
+                <div class="review-carousel-card">
+                    <div class="review-carousel-quote">"</div>
+                    <p class="review-carousel-text">${review.text}</p>
+                    <div class="review-carousel-author">
+                        <img src="${review.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop&crop=face'}" alt="${review.name}" class="review-carousel-avatar" loading="lazy" />
+                        <div class="review-carousel-info">
+                            <h5>${review.name}</h5>
+                            <span>${review.role || 'Student'}</span>
+                            <div class="review-carousel-stars">${'★'.repeat(review.stars || 5)}</div>
+                        </div>
+                    </div>
+                    <div class="review-carousel-meta">
+                        <span class="review-carousel-course">${review.course || 'Student'}</span>
+                        <span class="review-carousel-date">${review.date || 'Recently'}</span>
+                    </div>
+                </div>
+            `;
+            reviewTrack.appendChild(slide);
+        });
+
+        // Re-initialize Read More buttons for new reviews
+        reviewTrack.querySelectorAll('.review-carousel-text').forEach(textEl => {
+            if (textEl.scrollHeight <= textEl.clientHeight + 10) return;
+            // Check if button already exists
+            if (textEl.nextElementSibling && textEl.nextElementSibling.classList.contains('review-read-more')) return;
+
+            const btn = document.createElement('button');
+            btn.className = 'review-read-more';
+            btn.innerHTML = 'Read more <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            textEl.insertAdjacentElement('afterend', btn);
+            btn.addEventListener('click', () => {
+                const expanded = textEl.classList.toggle('expanded');
+                btn.innerHTML = expanded
+                    ? 'Show less <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>'
+                    : 'Read more <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            });
+        });
+
+        // Update carousel total count if counter exists
+        const counterTotal = document.getElementById('reviewCounterTotal');
+        const allSlides = reviewTrack.querySelectorAll('.review-carousel-slide');
+        if (counterTotal) {
+            counterTotal.textContent = allSlides.length;
+        }
+        // Add carousel dots for new slides if needed
+        const dotsContainer = document.getElementById('reviewCarouselDots');
+        if (dotsContainer) {
+            const existingDots = dotsContainer.querySelectorAll('.review-carousel-dot');
+            const neededDots = allSlides.length;
+            for (let i = existingDots.length; i < neededDots; i++) {
+                const dot = document.createElement('button');
+                dot.className = 'review-carousel-dot';
+                dot.setAttribute('data-index', i);
+                dot.setAttribute('aria-label', 'Review ' + (i + 1));
+                dotsContainer.appendChild(dot);
+            }
+        }
+    }
 })();
